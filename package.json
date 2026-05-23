@@ -1,0 +1,19 @@
+{
+  "name": "ownbench",
+  "version": "1.0.0",
+  "description": "A basic TypeScript CLI",
+  "type": "module",
+  "bin": {
+    "ownbench": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.19",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
