@@ -1,31 +1,22 @@
 #!/usr/bin/env node
 
-import { argv, exit, cwd } from "node:process";
-import { mkdirSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { Command } from "commander";
+import { configCmd } from "./commands/config.js";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
-function init() {
-  const dir = join(cwd(), ".ownbench");
+const pkg = JSON.parse(
+  readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"),
+    "utf-8",
+  ),
+) as { version: string };
 
-  if (existsSync(dir)) {
-    console.log(".ownbench already exists in this directory.");
-    exit(0);
-  }
+const program = new Command()
+  .name("ownbench")
+  .description("A basic TypeScript CLI")
+  .version(pkg.version);
 
-  mkdirSync(dir);
-  console.log("Initialized .ownbench directory.");
-}
-
-function main(args: string[]) {
-  const command = args[0];
-
-  if (command === "init") {
-    init();
-  } else {
-    console.log("Usage: ownbench init");
-    exit(1);
-  }
-}
-
-main(argv.slice(2));
-exit(0);
+program.addCommand(configCmd);
+program.parse();
