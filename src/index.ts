@@ -2,6 +2,7 @@
 
 import { Command } from "commander";
 import { configCmd } from "./commands/config.js";
+import { generateCmd } from "./commands/generate.js";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -19,4 +20,5 @@ const program = new Command()
   .version(pkg.version);
 
 program.addCommand(configCmd);
+program.addCommand(generateCmd);
 program.parse();

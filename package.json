@@ -24,6 +24,8 @@
   },
   "dependencies": {
     "@earendil-works/pi-ai": "^0.75.5",
+    "@earendil-works/pi-coding-agent": "^0.75.5",
+    "@inkjs/ui": "^2.0.0",
     "@types/react": "^19.2.15",
     "commander": "^14.0.3",
     "ink": "^7.0.3",
