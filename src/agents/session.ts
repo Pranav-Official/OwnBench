@@ -10,7 +10,7 @@ import { getModel } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { readConfig } from "../lib/config.js";
 import { writeFileSync, mkdirSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 
 const writeOwnbench = defineTool({
   name: "write_ownbench",
@@ -31,7 +31,8 @@ const writeOwnbench = defineTool({
     const ownbenchDir = join(process.cwd(), ".ownbench");
     const targetPath = resolve(ownbenchDir, params.relativePath);
 
-    if (!targetPath.startsWith(ownbenchDir + "/") && targetPath !== ownbenchDir) {
+    const rel = relative(ownbenchDir, targetPath);
+    if (rel.startsWith("..")) {
       return {
         continue: false,
         content: [

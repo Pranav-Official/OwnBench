@@ -18,14 +18,7 @@ export const generateCmd = new Command("generate")
       process.exit(1);
     }
 
-    let hasKey = false;
-    for (const [provider, key] of Object.entries(config.apiKeys)) {
-      if (key) {
-        hasKey = true;
-        break;
-      }
-    }
-    if (!hasKey) {
+    if (!config.apiKeys[config.llmProvider]) {
       console.error(
         "Error: No API key configured for the selected provider.",
       );

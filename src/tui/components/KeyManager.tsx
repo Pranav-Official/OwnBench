@@ -27,7 +27,7 @@ export function KeyManager({
   const stopEditing = useCallback(
     (save: boolean) => {
       if (editingIndex === null) return;
-      if (save && editBuffer.length > 0) {
+      if (save && editBuffer.length > 0 && editingIndex < providers.length) {
         onUpdateKey(providers[editingIndex].id, editBuffer);
       }
       setEditingIndex(null);

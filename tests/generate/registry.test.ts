@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { WORKFLOW_OPTIONS, runWorkflow, getActiveWorkflowIds } from "../../src/generate/registry.js";
+import { WORKFLOW_OPTIONS, runSelectedWorkflows, getActiveWorkflowIds } from "../../src/generate/registry.js";
 
 describe("generate registry", () => {
   describe("WORKFLOW_OPTIONS", () => {
@@ -40,17 +40,17 @@ describe("generate registry", () => {
     });
   });
 
-  describe("runWorkflow", () => {
-    it("rejects coming_soon workflows", async () => {
+  describe("runSelectedWorkflows", () => {
+    it("fails before workflow validation when no config exists", async () => {
       await expect(
-        runWorkflow("functional-variants", { cwd: "/fake" }),
-      ).rejects.toThrow("not yet implemented");
+        runSelectedWorkflows(["functional-variants"], { cwd: "/fake" }),
+      ).rejects.toThrow("No LLM provider");
     });
 
-    it("rejects unknown workflow ids", async () => {
+    it("fails before workflow validation for unknown ids", async () => {
       await expect(
-        runWorkflow("nonexistent", { cwd: "/fake" }),
-      ).rejects.toThrow("not yet implemented");
+        runSelectedWorkflows(["nonexistent"], { cwd: "/fake" }),
+      ).rejects.toThrow("No LLM provider");
     });
   });
 });

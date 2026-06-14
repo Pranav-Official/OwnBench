@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { Box, Text, useInput } from "ink";
 import {
   WORKFLOW_OPTIONS,
-  runWorkflow,
+  runSelectedWorkflows,
 } from "../../generate/registry.js";
 import type { LogEvent } from "../../generate/types.js";
 import { LogView } from "./LogView.js";
@@ -67,22 +67,19 @@ export function WorkflowSelector({ projectDir }: WorkflowSelectorProps) {
 
     setEvents([]);
     setStream({ thinking: "", text: "" });
+    setViewState({ type: "running", label: "Generating metadata…" });
 
-    for (const id of ids) {
-      const option = WORKFLOW_OPTIONS.find((o) => o.id === id);
-      if (!option) continue;
-
-      setViewState({ type: "running", label: option.label });
-
-      try {
-        await runWorkflow(id, { cwd: projectDir, onEvent: handleEvent });
-      } catch (err) {
-        setViewState({
-          type: "error",
-          message: err instanceof Error ? err.message : String(err),
-        });
-        return;
-      }
+    try {
+      await runSelectedWorkflows(ids, {
+        cwd: projectDir,
+        onEvent: handleEvent,
+      });
+    } catch (err) {
+      setViewState({
+        type: "error",
+        message: err instanceof Error ? err.message : String(err),
+      });
+      return;
     }
 
     setViewState({ type: "done", message: "All workflows completed." });
