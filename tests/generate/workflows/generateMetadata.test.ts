@@ -23,14 +23,14 @@ function writeFakeArtifact(name: string, content: string) {
   writeFileSync(join(tmpDir, ".ownbench", "metadata", name), content);
 }
 
-vi.mock("../../../src/generate/workflows/runPrompt.js", () => ({
-  runPrompt: vi.fn(),
+vi.mock("../../../src/generate/workflows/runPromptWithRetry.js", () => ({
+  runPromptWithRetry: vi.fn(),
 }));
 
-const { runPrompt } = await import(
-  "../../../src/generate/workflows/runPrompt.js"
+const { runPromptWithRetry } = await import(
+  "../../../src/generate/workflows/runPromptWithRetry.js"
 );
-const mockRunPrompt = vi.mocked(runPrompt);
+const mockRunPromptWithRetry = vi.mocked(runPromptWithRetry);
 
 const { generateFunctionalFiles } = await import(
   "../../../src/generate/workflows/generateFunctionalFiles.js"
@@ -51,23 +51,31 @@ describe("generateMetadata", () => {
   });
 
   it("skips completed steps when not stale", async () => {
-    mockRunPrompt.mockImplementation(async (ctx: WorkflowContext, prompt: string) => {
-      if (prompt.includes("functional source code files")) {
-        writeFakeArtifact("functional_files.json", '{"files":[]}');
-      } else if (prompt.includes("candidate functions")) {
-        writeFakeArtifact(
-          "candidate_functions.json",
-          '{"functions":[{"file":"src/a.ts","name":"foo","startLine":1,"endLine":5,"testFile":null}]}',
-        );
-      }
-    });
+    // functionalFiles is already checkpointed, so runPromptWithRetry is
+    // called only for candidateFunctions + dashboard.
+    // dashboard doesn't call runPromptWithRetry (sync file write).
+    mockRunPromptWithRetry.mockImplementation(
+      async (ctx: any, stepKey: string, prompt: string, validator: () => string | null) => {
+        if (stepKey === "metadata.candidateFunctions") {
+          writeFakeArtifact(
+            "candidate_functions.json",
+            '{"functions":[{"file":"src/a.ts","name":"foo","startLine":1,"endLine":5,"testFile":null}]}',
+          );
+        }
+        const err = validator();
+        if (err !== null) throw new Error(err);
+      },
+    );
 
-    writeFakeArtifact("functional_files.json", '{"files":[]}');
+    writeFakeArtifact(
+      "functional_files.json",
+      '{"files":[{"path":"src/a.ts","lines":100,"description":"test file"}]}',
+    );
     writeCheckpoint(tmpDir, "metadata.functionalFiles", "completed");
 
     await generateMetadata({ cwd: tmpDir });
 
-    expect(mockRunPrompt).toHaveBeenCalledTimes(1);
+    expect(mockRunPromptWithRetry).toHaveBeenCalledTimes(1);
     expect(
       readCheckpoint(tmpDir).steps["metadata.functionalFiles"],
     ).toBeDefined();
@@ -80,41 +88,61 @@ describe("generateMetadata", () => {
   });
 
   it("runs all steps when stale", async () => {
-    mockRunPrompt.mockImplementation(async (ctx: WorkflowContext, prompt: string) => {
-      if (prompt.includes("functional source code files")) {
-        writeFakeArtifact("functional_files.json", '{"files":[]}');
-      } else if (prompt.includes("candidate functions")) {
-        writeFakeArtifact(
-          "candidate_functions.json",
-          '{"functions":[{"file":"src/a.ts","name":"foo","startLine":1,"endLine":5,"testFile":null}]}',
-        );
-      }
-    });
+    mockRunPromptWithRetry.mockImplementation(
+      async (ctx: any, stepKey: string, prompt: string, validator: () => string | null) => {
+        if (stepKey === "metadata.functionalFiles") {
+          writeFakeArtifact(
+            "functional_files.json",
+            '{"files":[{"path":"src/a.ts","lines":100,"description":"test file"}]}',
+          );
+        } else if (stepKey === "metadata.candidateFunctions") {
+          writeFakeArtifact(
+            "candidate_functions.json",
+            '{"functions":[{"file":"src/a.ts","name":"foo","startLine":1,"endLine":5,"testFile":null}]}',
+          );
+        }
+        const err = validator();
+        if (err !== null) throw new Error(err);
+      },
+    );
 
     writeCheckpoint(tmpDir, "metadata.functionalFiles", "completed");
 
     await generateMetadata({ cwd: tmpDir, stale: true });
 
-    expect(mockRunPrompt).toHaveBeenCalledTimes(2);
+    expect(mockRunPromptWithRetry).toHaveBeenCalledTimes(2);
   });
 
   it("throws when step produces no output artifact", async () => {
-    mockRunPrompt.mockImplementation(async (ctx: WorkflowContext, prompt: string) => {
-      if (prompt.includes("functional source code files")) {
-        writeFakeArtifact("functional_files.json", '{"files":[]}');
-      }
-    });
+    mockRunPromptWithRetry.mockImplementation(
+      async (ctx: any, stepKey: string, prompt: string, validator: () => string | null) => {
+        if (stepKey === "metadata.functionalFiles") {
+          writeFakeArtifact(
+            "functional_files.json",
+            '{"files":[{"path":"src/a.ts","lines":100,"description":"test file"}]}',
+          );
+        }
+        // candidateFunctions: do NOT write the file — validator will fail
+        const err = validator();
+        if (err !== null) throw new Error(err);
+      },
+    );
 
-    writeFakeArtifact("functional_files.json", '{"files":[]}');
+    writeFakeArtifact(
+      "functional_files.json",
+      '{"files":[{"path":"src/a.ts","lines":100,"description":"test file"}]}',
+    );
     writeCheckpoint(tmpDir, "metadata.functionalFiles", "completed");
 
     await expect(
       generateMetadata({ cwd: tmpDir }),
-    ).rejects.toThrow("metadata.candidateFunctions");
+    ).rejects.toThrow("candidate_functions.json");
   });
 
   it("does not write checkpoint when step throws", async () => {
-    mockRunPrompt.mockRejectedValue(new Error("simulated LLM failure"));
+    mockRunPromptWithRetry.mockRejectedValue(
+      new Error("simulated LLM failure"),
+    );
 
     await expect(
       generateMetadata({ cwd: tmpDir }),

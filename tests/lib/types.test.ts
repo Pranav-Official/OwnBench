@@ -9,6 +9,7 @@ describe("types", () => {
         primaryModel: "",
         secondaryModel: "",
         apiKeys: {},
+        maxRetries: 3,
       });
     });
 

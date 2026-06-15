@@ -11,6 +11,7 @@ export interface WorkflowContext {
   cwd: string;
   onEvent?: (event: LogEvent) => void;
   stale?: boolean;
+  maxRetries?: number;
 }
 
 export type LogEvent =

@@ -6,6 +6,7 @@ import {
 } from "../../generate/registry.js";
 import type { LogEvent } from "../../generate/types.js";
 import { LogView, appendEvent, type LogState } from "./LogView.js";
+import { readConfig } from "../../lib/config.js";
 
 interface WorkflowSelectorProps {
   projectDir: string;
@@ -69,10 +70,12 @@ export function WorkflowSelector({ projectDir, stale }: WorkflowSelectorProps) {
     setViewState({ type: "running", label: "Generating metadata…" });
 
     try {
+      const config = readConfig();
       await runSelectedWorkflows(ids, {
         cwd: projectDir,
         onEvent: handleEvent,
         stale,
+        maxRetries: config.maxRetries,
       });
     } catch (err) {
       setViewState({

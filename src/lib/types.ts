@@ -3,6 +3,7 @@ export interface Config {
   primaryModel: string;
   secondaryModel: string;
   apiKeys: Record<string, string>;
+  maxRetries: number;
 }
 
 export const DEFAULT_CONFIG: Config = {
@@ -10,11 +11,12 @@ export const DEFAULT_CONFIG: Config = {
   primaryModel: "",
   secondaryModel: "",
   apiKeys: {},
+  maxRetries: 3,
 };
 
 export type MenuItemMode = "text" | "picker";
 
-export type ConfigField = Exclude<keyof Config, "apiKeys">;
+export type ConfigField = Exclude<keyof Config, "apiKeys" | "maxRetries">;
 
 export interface MenuItemData {
   label: string;

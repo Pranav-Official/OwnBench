@@ -1,11 +1,37 @@
-import { runPrompt } from "./runPrompt.js";
+import { runPromptWithRetry } from "./runPromptWithRetry.js";
 import type { WorkflowContext } from "../types.js";
-import { mkdirSync } from "node:fs";
+import { existsSync, readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const MAX_FUNCTIONS = 100;
 const MIN_FUNCTIONS = 80;
 const MAX_PER_FILE = 3;
+
+const STEP_KEY = "metadata.candidateFunctions";
+
+function validate(ctx: WorkflowContext): string | null {
+  const filePath = join(
+    ctx.cwd,
+    ".ownbench",
+    "metadata",
+    "candidate_functions.json",
+  );
+  if (!existsSync(filePath)) {
+    return "output file candidate_functions.json was not created";
+  }
+  try {
+    const data = JSON.parse(readFileSync(filePath, "utf-8"));
+    if (!data || !Array.isArray(data.functions)) {
+      return "JSON is valid but missing 'functions' array";
+    }
+    if (data.functions.length === 0) {
+      return "JSON is valid but 'functions' array is empty";
+    }
+    return null;
+  } catch {
+    return "output file exists but is not valid JSON";
+  }
+}
 
 export async function generateCandidateFunctions(
   ctx: WorkflowContext,
@@ -71,5 +97,5 @@ Use the \`write_ownbench\` tool to write the file to: \`metadata/candidate_funct
 - Be thorough: process ALL files in the functional_files.json list.
 - The output directory \`.ownbench/metadata/\` already exists.`;
 
-  await runPrompt(ctx, prompt);
+  await runPromptWithRetry(ctx, STEP_KEY, prompt, () => validate(ctx));
 }

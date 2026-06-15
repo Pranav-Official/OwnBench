@@ -1,10 +1,31 @@
-import { runPrompt } from "./runPrompt.js";
+import { runPromptWithRetry } from "./runPromptWithRetry.js";
 import type { WorkflowContext } from "../types.js";
-import { mkdirSync } from "node:fs";
+import { existsSync, readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 export interface FunctionalFilesJson {
   files: { path: string; lines: number; description: string }[];
+}
+
+const STEP_KEY = "metadata.functionalFiles";
+
+function validate(ctx: WorkflowContext): string | null {
+  const filePath = join(ctx.cwd, ".ownbench", "metadata", "functional_files.json");
+  if (!existsSync(filePath)) {
+    return "output file functional_files.json was not created";
+  }
+  try {
+    const data = JSON.parse(readFileSync(filePath, "utf-8"));
+    if (!data || !Array.isArray(data.files)) {
+      return "JSON is valid but missing 'files' array";
+    }
+    if (data.files.length === 0) {
+      return "JSON is valid but 'files' array is empty";
+    }
+    return null;
+  } catch {
+    return "output file exists but is not valid JSON";
+  }
 }
 
 export async function generateFunctionalFiles(
@@ -70,5 +91,5 @@ The file must contain valid JSON with this exact structure:
 - Do not skip any source directory that contains functional code.
 - The output directory \`.ownbench/metadata/\` already exists.`;
 
-  await runPrompt(ctx, prompt);
+  await runPromptWithRetry(ctx, STEP_KEY, prompt, () => validate(ctx));
 }
