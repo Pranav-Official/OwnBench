@@ -1,6 +1,11 @@
 import type { WorkflowOption, WorkflowContext } from "./types.js";
 import { generateMetadata } from "./workflows/generateMetadata.js";
 import { runUnitTestsToCode } from "./workflows/unit-tests-to-code.js";
+import {
+  clearCheckpoints,
+  isCheckpointComplete,
+  writeCheckpoint,
+} from "../lib/checkpoint.js";
 
 export const WORKFLOW_OPTIONS: WorkflowOption[] = [
   {
@@ -29,15 +34,18 @@ export const WORKFLOW_OPTIONS: WorkflowOption[] = [
   },
 ];
 
+const WORKFLOW_RUNNERS: Record<string, (ctx: WorkflowContext) => Promise<void>> = {
+  "unit-tests-to-code": runUnitTestsToCode,
+};
+
 async function runWorkflowById(
   id: string,
   ctx: WorkflowContext,
 ): Promise<void> {
-  switch (id) {
-    case "unit-tests-to-code":
-      return runUnitTestsToCode(ctx);
-    default:
-      throw new Error(`Workflow "${id}" is not yet implemented.`);
+  const runner = WORKFLOW_RUNNERS[id];
+  if (runner) {
+    await runner(ctx);
+    writeCheckpoint(ctx.cwd, `workflow.${id}`, "completed");
   }
 }
 
@@ -45,12 +53,16 @@ export async function runSelectedWorkflows(
   ids: string[],
   ctx: WorkflowContext,
 ): Promise<void> {
+  if (ctx.stale) {
+    clearCheckpoints(ctx.cwd);
+  }
+
   await generateMetadata(ctx);
 
   for (const id of ids) {
-    const option = WORKFLOW_OPTIONS.find((o) => o.id === id);
-    if (!option) continue;
-    await runWorkflowById(id, ctx);
+    if (!isCheckpointComplete(ctx.cwd, `workflow.${id}`)) {
+      await runWorkflowById(id, ctx);
+    }
   }
 }
 

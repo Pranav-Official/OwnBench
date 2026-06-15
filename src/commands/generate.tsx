@@ -6,7 +6,8 @@ import { cwd } from "node:process";
 
 export const generateCmd = new Command("generate")
   .description("Run code analysis and generation workflows")
-  .action(() => {
+  .option("--stale", "Regenerate everything from scratch")
+  .action((options) => {
     const config = readConfig();
     if (!config.llmProvider || !config.primaryModel) {
       console.error(
@@ -30,7 +31,7 @@ export const generateCmd = new Command("generate")
 
     ensureInit();
     const { waitUntilExit } = render(
-      <WorkflowSelector projectDir={cwd()} />,
+      <WorkflowSelector projectDir={cwd()} stale={options.stale} />,
     );
     waitUntilExit();
   });

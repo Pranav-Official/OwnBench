@@ -10,6 +10,7 @@ export interface WorkflowOption {
 export interface WorkflowContext {
   cwd: string;
   onEvent?: (event: LogEvent) => void;
+  stale?: boolean;
 }
 
 export type LogEvent =

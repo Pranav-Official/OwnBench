@@ -1,15 +1,15 @@
-import { useState, useCallback } from "react";
-import { Box, Text, useInput } from "ink";
+import { useState, useCallback, useEffect } from "react";
+import { Box, Text, useInput, useWindowSize } from "ink";
 import {
   WORKFLOW_OPTIONS,
   runSelectedWorkflows,
 } from "../../generate/registry.js";
 import type { LogEvent } from "../../generate/types.js";
-import { LogView } from "./LogView.js";
-import type { StreamBlock } from "./LogView.js";
+import { LogView, appendEvent, type LogState } from "./LogView.js";
 
 interface WorkflowSelectorProps {
   projectDir: string;
+  stale?: boolean;
 }
 
 type ViewState =
@@ -18,37 +18,33 @@ type ViewState =
   | { type: "done"; message: string }
   | { type: "error"; message: string };
 
-export function WorkflowSelector({ projectDir }: WorkflowSelectorProps) {
+export function WorkflowSelector({ projectDir, stale }: WorkflowSelectorProps) {
   const [viewState, setViewState] = useState<ViewState>({ type: "select" });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [events, setEvents] = useState<LogEvent[]>([]);
-  const [stream, setStream] = useState<StreamBlock>({
-    thinking: "",
-    text: "",
+  const [log, setLog] = useState<LogState>({
+    items: [],
+    stream: { thinking: "", text: "" },
   });
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [expandedBlocks, setExpandedBlocks] = useState<Set<number>>(
+    new Set(),
+  );
+  const [autoScroll, setAutoScroll] = useState(true);
+
+  const { rows } = useWindowSize();
+  const visibleHeight = Math.max(10, rows - 8);
 
   const handleEvent = useCallback((event: LogEvent) => {
-    if (event.type === "thinking") {
-      setStream((prev) => ({
-        thinking: prev.thinking + event.delta,
-        text: "",
-      }));
-    } else if (event.type === "text") {
-      setStream((prev) => ({
-        thinking: "",
-        text: prev.text + event.delta,
-      }));
-    } else {
-      setStream((prev) => {
-        if (prev.thinking.length > 0 || prev.text.length > 0) {
-          return { thinking: "", text: "" };
-        }
-        return prev;
-      });
-      setEvents((prev) => [...prev, event]);
-    }
+    setLog((prev) => appendEvent(prev, event));
   }, []);
+
+  useEffect(() => {
+    if (!autoScroll) return;
+    const len = log.items.length;
+    setSelectedIndex(len - 1);
+    setScrollOffset(Math.max(0, len - visibleHeight));
+  }, [log.items.length, autoScroll, visibleHeight]);
 
   const toggleCheck = (id: string) => {
     const option = WORKFLOW_OPTIONS.find((o) => o.id === id);
@@ -65,14 +61,18 @@ export function WorkflowSelector({ projectDir }: WorkflowSelectorProps) {
     const ids = Array.from(checked);
     if (ids.length === 0) return;
 
-    setEvents([]);
-    setStream({ thinking: "", text: "" });
+    setLog({ items: [], stream: { thinking: "", text: "" } });
+    setSelectedIndex(0);
+    setScrollOffset(0);
+    setExpandedBlocks(new Set());
+    setAutoScroll(true);
     setViewState({ type: "running", label: "Generating metadata…" });
 
     try {
       await runSelectedWorkflows(ids, {
         cwd: projectDir,
         onEvent: handleEvent,
+        stale,
       });
     } catch (err) {
       setViewState({
@@ -86,6 +86,61 @@ export function WorkflowSelector({ projectDir }: WorkflowSelectorProps) {
   };
 
   useInput((input, key) => {
+    if (viewState.type === "running") {
+      if (key.upArrow) {
+        setAutoScroll(false);
+        setSelectedIndex((prev) => {
+          const next = Math.max(0, prev - 1);
+          setScrollOffset((so) => Math.min(so, next));
+          return next;
+        });
+      } else if (key.downArrow) {
+        setSelectedIndex((prev) => {
+          const max = log.items.length - 1;
+          const next = Math.min(max, prev + 1);
+          if (next >= max) setAutoScroll(true);
+          setScrollOffset((so) => Math.max(so, next - visibleHeight + 1));
+          return next;
+        });
+      } else if (key.pageUp) {
+        setAutoScroll(false);
+        setSelectedIndex((prev) => {
+          const next = Math.max(0, prev - visibleHeight + 1);
+          setScrollOffset((so) => Math.max(0, so - visibleHeight + 1));
+          return next;
+        });
+      } else if (key.pageDown) {
+        setSelectedIndex((prev) => {
+          const max = log.items.length - 1;
+          const next = Math.min(max, prev + visibleHeight - 1);
+          setScrollOffset((so) => Math.min(max - visibleHeight + 1, so + visibleHeight - 1));
+          return next;
+        });
+      } else if (key.home) {
+        setAutoScroll(false);
+        setSelectedIndex(0);
+        setScrollOffset(0);
+      } else if (key.end) {
+        setAutoScroll(true);
+        const max = log.items.length - 1;
+        setSelectedIndex(max);
+        setScrollOffset(Math.max(0, max - visibleHeight + 1));
+      } else if (input === " ") {
+        const item = log.items[selectedIndex];
+        if (item?.type === "toolBlock") {
+          setExpandedBlocks((prev) => {
+            const next = new Set(prev);
+            if (next.has(selectedIndex)) next.delete(selectedIndex);
+            else next.add(selectedIndex);
+            return next;
+          });
+        }
+      } else if (key.escape) {
+        process.exit(0);
+      }
+      return;
+    }
+
     if (viewState.type !== "select") return;
 
     if (key.upArrow) {
@@ -94,9 +149,12 @@ export function WorkflowSelector({ projectDir }: WorkflowSelectorProps) {
           (prev - 1 + WORKFLOW_OPTIONS.length) % WORKFLOW_OPTIONS.length,
       );
     } else if (key.downArrow || (key.tab && !key.shift)) {
-      setSelectedIndex((prev) => (prev + 1) % WORKFLOW_OPTIONS.length);
+      setSelectedIndex(
+        (prev) => (prev + 1) % WORKFLOW_OPTIONS.length,
+      );
     } else if (input === " ") {
-      toggleCheck(WORKFLOW_OPTIONS[selectedIndex].id);
+      const option = WORKFLOW_OPTIONS[selectedIndex];
+      if (option && option.status === "active") toggleCheck(option.id);
     } else if (key.return) {
       runSelected();
     } else if (key.escape) {
@@ -113,7 +171,14 @@ export function WorkflowSelector({ projectDir }: WorkflowSelectorProps) {
             Running: <Text color="yellow">{viewState.label}</Text>
           </Text>
         </Box>
-        <LogView events={events} stream={stream} />
+        <LogView
+          items={log.items}
+          stream={log.stream}
+          selectedIndex={selectedIndex}
+          scrollOffset={scrollOffset}
+          expandedBlocks={expandedBlocks}
+          height={visibleHeight}
+        />
       </Box>
     );
   }
@@ -140,6 +205,8 @@ export function WorkflowSelector({ projectDir }: WorkflowSelectorProps) {
       </Box>
     );
   }
+
+  const activeOptions = WORKFLOW_OPTIONS.filter((o) => o.status === "active");
 
   return (
     <Box flexDirection="column" padding={1}>
