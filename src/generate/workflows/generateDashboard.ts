@@ -1,7 +1,6 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { WorkflowContext } from "../types.js";
-import { writeCheckpoint } from "../../lib/checkpoint.js";
 
 const DASHBOARD_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -131,5 +130,4 @@ export async function generateDashboard(ctx: WorkflowContext): Promise<void> {
 
   const outPath = join(metadataDir, "index.html");
   writeFileSync(outPath, DASHBOARD_HTML, "utf-8");
-  writeCheckpoint(ctx.cwd, "metadata.dashboard", "completed");
 }

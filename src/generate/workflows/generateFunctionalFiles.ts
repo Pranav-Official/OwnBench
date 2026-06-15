@@ -2,7 +2,6 @@ import { runPrompt } from "./runPrompt.js";
 import type { WorkflowContext } from "../types.js";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { writeCheckpoint } from "../../lib/checkpoint.js";
 
 export interface FunctionalFilesJson {
   files: { path: string; lines: number; description: string }[];
@@ -72,5 +71,4 @@ The file must contain valid JSON with this exact structure:
 - The output directory \`.ownbench/metadata/\` already exists.`;
 
   await runPrompt(ctx, prompt);
-  writeCheckpoint(ctx.cwd, "metadata.functionalFiles", "completed");
 }

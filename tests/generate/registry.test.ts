@@ -1,7 +1,25 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("../../src/generate/workflows/generateMetadata.js", () => ({
+  generateMetadata: vi.fn(),
+}));
+
+vi.mock("../../src/generate/workflows/unit-tests-to-code.js", () => ({
+  runUnitTestsToCode: vi.fn(),
+}));
+
+vi.mock("../../src/lib/checkpoint.js", () => ({
+  clearCheckpoints: vi.fn(),
+  isCheckpointComplete: vi.fn(() => false),
+  writeCheckpoint: vi.fn(),
+}));
+
 import { WORKFLOW_OPTIONS, runSelectedWorkflows, getActiveWorkflowIds } from "../../src/generate/registry.js";
 
 describe("generate registry", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
   describe("WORKFLOW_OPTIONS", () => {
     it("has 4 workflow options", () => {
       expect(WORKFLOW_OPTIONS).toHaveLength(4);
@@ -41,16 +59,24 @@ describe("generate registry", () => {
   });
 
   describe("runSelectedWorkflows", () => {
-    it("fails before workflow validation when no config exists", async () => {
-      await expect(
-        runSelectedWorkflows(["functional-variants"], { cwd: "/fake" }),
-      ).rejects.toThrow("No LLM provider");
+    it("calls generateMetadata before running workflows", async () => {
+      const { generateMetadata } = await import(
+        "../../src/generate/workflows/generateMetadata.js"
+      );
+
+      await runSelectedWorkflows(["unit-tests-to-code"], { cwd: "/fake" });
+
+      expect(generateMetadata).toHaveBeenCalled();
     });
 
-    it("fails before workflow validation for unknown ids", async () => {
-      await expect(
-        runSelectedWorkflows(["nonexistent"], { cwd: "/fake" }),
-      ).rejects.toThrow("No LLM provider");
+    it("skips unknown workflow ids", async () => {
+      const { runUnitTestsToCode } = await import(
+        "../../src/generate/workflows/unit-tests-to-code.js"
+      );
+
+      await runSelectedWorkflows(["nonexistent"], { cwd: "/fake" });
+
+      expect(runUnitTestsToCode).not.toHaveBeenCalled();
     });
   });
 });

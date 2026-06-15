@@ -4,12 +4,19 @@ import { generateCandidateFunctions } from "./generateCandidateFunctions.js";
 import { generateDashboard } from "./generateDashboard.js";
 import {
   clearCheckpoints,
+  writeCheckpoint,
   isCheckpointComplete,
 } from "../../lib/checkpoint.js";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const STEPS = [
+interface MetadataStep {
+  key: string;
+  run: (ctx: WorkflowContext) => Promise<void>;
+  validate: (cwd: string) => boolean;
+}
+
+const STEPS: MetadataStep[] = [
   {
     key: "metadata.functionalFiles",
     run: generateFunctionalFiles,
@@ -19,10 +26,21 @@ const STEPS = [
   {
     key: "metadata.candidateFunctions",
     run: generateCandidateFunctions,
-    validate: (cwd: string) =>
-      existsSync(
-        join(cwd, ".ownbench", "metadata", "candidate_functions.json"),
-      ),
+    validate: (cwd: string) => {
+      const filePath = join(
+        cwd,
+        ".ownbench",
+        "metadata",
+        "candidate_functions.json",
+      );
+      if (!existsSync(filePath)) return false;
+      try {
+        const data = JSON.parse(readFileSync(filePath, "utf-8"));
+        return !!(data && Array.isArray(data.functions) && data.functions.length > 0);
+      } catch {
+        return false;
+      }
+    },
   },
   {
     key: "metadata.dashboard",
@@ -38,8 +56,14 @@ export async function generateMetadata(ctx: WorkflowContext): Promise<void> {
   }
 
   for (const step of STEPS) {
-    if (!isCheckpointComplete(ctx.cwd, step.key, () => step.validate(ctx.cwd))) {
+    if (!isCheckpointComplete(ctx.cwd, step.key)) {
       await step.run(ctx);
+      if (!step.validate(ctx.cwd)) {
+        throw new Error(
+          `Metadata step "${step.key}" failed: output artifact is missing or invalid after execution.`,
+        );
+      }
+      writeCheckpoint(ctx.cwd, step.key, "completed");
     }
   }
 }

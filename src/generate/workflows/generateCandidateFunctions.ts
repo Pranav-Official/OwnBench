@@ -2,7 +2,6 @@ import { runPrompt } from "./runPrompt.js";
 import type { WorkflowContext } from "../types.js";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { writeCheckpoint } from "../../lib/checkpoint.js";
 
 const MAX_FUNCTIONS = 100;
 const MIN_FUNCTIONS = 80;
@@ -73,5 +72,4 @@ Use the \`write_ownbench\` tool to write the file to: \`metadata/candidate_funct
 - The output directory \`.ownbench/metadata/\` already exists.`;
 
   await runPrompt(ctx, prompt);
-  writeCheckpoint(ctx.cwd, "metadata.candidateFunctions", "completed");
 }
