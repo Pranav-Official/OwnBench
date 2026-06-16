@@ -27,10 +27,19 @@ vi.mock("../../../src/generate/workflows/runPromptWithRetry.js", () => ({
   runPromptWithRetry: vi.fn(),
 }));
 
+vi.mock("../../../src/generate/resolveCandidates.js", () => ({
+  resolveCandidates: vi.fn(),
+}));
+
 const { runPromptWithRetry } = await import(
   "../../../src/generate/workflows/runPromptWithRetry.js"
 );
 const mockRunPromptWithRetry = vi.mocked(runPromptWithRetry);
+
+const { resolveCandidates } = await import(
+  "../../../src/generate/resolveCandidates.js"
+);
+const mockResolveCandidates = vi.mocked(resolveCandidates);
 
 const { generateFunctionalFiles } = await import(
   "../../../src/generate/workflows/generateFunctionalFiles.js"
@@ -48,6 +57,16 @@ const { generateMetadata } = await import(
 describe("generateMetadata", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockResolveCandidates.mockImplementation(
+      (_projectDir: string, llmOutput: { file: string; name: string }[]) =>
+        llmOutput.map((c) => ({
+          file: c.file,
+          name: c.name,
+          startLine: 1,
+          endLine: 1,
+          testFile: null,
+        })),
+    );
   });
 
   it("skips completed steps when not stale", async () => {
@@ -59,7 +78,7 @@ describe("generateMetadata", () => {
         if (stepKey === "metadata.candidateFunctions") {
           writeFakeArtifact(
             "candidate_functions.json",
-            '{"functions":[{"file":"src/a.ts","name":"foo","startLine":1,"endLine":5,"testFile":null}]}',
+            '{"functions":[{"file":"src/a.ts","name":"foo","testFile":null}]}',
           );
         }
         const err = validator();
@@ -98,7 +117,7 @@ describe("generateMetadata", () => {
         } else if (stepKey === "metadata.candidateFunctions") {
           writeFakeArtifact(
             "candidate_functions.json",
-            '{"functions":[{"file":"src/a.ts","name":"foo","startLine":1,"endLine":5,"testFile":null}]}',
+            '{"functions":[{"file":"src/a.ts","name":"foo","testFile":null}]}',
           );
         }
         const err = validator();

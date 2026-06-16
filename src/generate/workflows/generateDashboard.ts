@@ -88,9 +88,9 @@ function statsHTML(funcs, files) {
 function renderFunctions(funcs) {
   if (!funcs || funcs.functions.length === 0) return '<div class="empty">No candidate functions found.</div>';
   const rows = funcs.functions.map(f =>
-    "<tr><td><code>" + f.file + "</code></td><td><code>" + f.name + "</code></td><td>" + f.startLine + "</td><td>" + f.endLine + "</td><td>" + (f.testFile ? "<code>" + f.testFile + "</code>" : '<span style="color:#57606a">—</span>') + "</td></tr>"
+    "<tr><td><code>" + f.file + "</code></td><td><code>" + f.name + "</code></td><td>" + (f.testFile ? "<code>" + f.testFile + "</code>" : '<span style="color:#57606a">—</span>') + "</td></tr>"
   ).join("");
-  return "<table><thead><tr><th>File</th><th>Function</th><th>Start</th><th>End</th><th>Test File</th></tr></thead><tbody>" + rows + "</tbody></table>";
+  return "<table><thead><tr><th>File</th><th>Function</th><th>Test File</th></tr></thead><tbody>" + rows + "</tbody></table>";
 }
 
 function renderFiles(files) {

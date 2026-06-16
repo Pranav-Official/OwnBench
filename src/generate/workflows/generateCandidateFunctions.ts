@@ -1,7 +1,8 @@
 import { runPromptWithRetry } from "./runPromptWithRetry.js";
 import type { WorkflowContext } from "../types.js";
-import { existsSync, readFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { resolveCandidates } from "../resolveCandidates.js";
 
 const MAX_FUNCTIONS = 100;
 const MIN_FUNCTIONS = 80;
@@ -58,18 +59,10 @@ IGNORE funtions that are
 - data transformation pipelines that are just chaining calls without much logic
 - simple conversion functions (e.g. formatting, parsing) unless they have complex logic or are well-tested
 
-## How to find test files
-For a source file like \`src/lib/config.ts\`, check for:
-- \`src/lib/config.test.ts\`
-- \`tests/lib/config.test.ts\`
-- \`__tests__/lib/config.test.ts\`
-- \`src/lib/__tests__/config.test.ts\`
-
 ## Rules
 - Stop after collecting at least ${MIN_FUNCTIONS} and up to ${MAX_FUNCTIONS} functions total across all files
 - Pick 0 functions from a file if none qualify — never force selections
 - Include functions that are \`export\`ed, \`const\` arrow functions, class methods, or standalone function declarations
-- For each function, record the exact start and end line numbers from the source file
 
 ## Output location
 Use the \`write_ownbench\` tool to write the file to: \`metadata/candidate_functions.json\`
@@ -78,17 +71,15 @@ Use the \`write_ownbench\` tool to write the file to: \`metadata/candidate_funct
 \`\`\`json
 {
   "functions": [
-    { "file": "src/lib/config.ts", "name": "readConfig", "startLine": 44, "endLine": 53, "testFile": "tests/lib/config.test.ts" },
-    { "file": "src/lib/config.ts", "name": "writeConfig", "startLine": 55, "endLine": 59, "testFile": "tests/lib/config.test.ts" }
+    { "file": "src/lib/config.ts", "name": "readConfig" },
+    { "file": "src/lib/config.ts", "name": "writeConfig" }
   ]
 }
 \`\`\`
 
 - "file": path relative to project root (${ctx.cwd}), forward slashes
 - "name": exact function/method/variable name as it appears in source
-- "startLine" / "endLine": integer line numbers (1-indexed, inclusive)
-- "testFile": path to the test file, or null if no test file found
-- Sort by file path, then by startLine ascending
+- Sort by file path, then by name
 
 ## Important rules
 - Do NOT edit or modify any source files. This is a read-only analysis.
@@ -98,4 +89,21 @@ Use the \`write_ownbench\` tool to write the file to: \`metadata/candidate_funct
 - The output directory \`.ownbench/metadata/\` already exists.`;
 
   await runPromptWithRetry(ctx, STEP_KEY, prompt, () => validate(ctx));
+
+  const metaPath = join(ctx.cwd, ".ownbench", "metadata", "candidate_functions.json");
+  const raw = JSON.parse(readFileSync(metaPath, "utf-8"));
+  const llmOutput: { file: string; name: string }[] = raw.functions;
+  const resolved = resolveCandidates(ctx.cwd, llmOutput);
+
+  writeFileSync(
+    metaPath,
+    JSON.stringify({ functions: resolved }, null, 2),
+    "utf-8",
+  );
+
+  ctx.onEvent?.({
+    type: "info",
+    id: 0,
+    message: `Resolved ${resolved.length} of ${llmOutput.length} candidate functions (AST + test file lookup)`,
+  });
 }

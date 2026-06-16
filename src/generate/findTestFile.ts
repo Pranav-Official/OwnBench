@@ -16,18 +16,25 @@ export function findTestFile(projectDir: string, sourcePath: string): string | n
 
   if (ext === ".ts" || ext === ".tsx") {
     const testExt = ext === ".tsx" ? ".test.tsx" : ".test.ts";
+    const specExt = ext === ".tsx" ? ".spec.tsx" : ".spec.ts";
     patterns.push(norm(join(dir, `${stem}${testExt}`)));
+    patterns.push(norm(join(dir, `${stem}${specExt}`)));
   } else if (ext === ".js" || ext === ".jsx") {
     const testExt = ext === ".jsx" ? ".test.jsx" : ".test.js";
+    const specExt = ext === ".jsx" ? ".spec.jsx" : ".spec.js";
     patterns.push(norm(join(dir, `${stem}${testExt}`)));
+    patterns.push(norm(join(dir, `${stem}${specExt}`)));
   }
 
   patterns.push(norm(join(dir, `${stem}.test.${ext.replace(".", "")}`)));
+  patterns.push(norm(join(dir, `${stem}.spec.${ext.replace(".", "")}`)));
 
   const relSegments = dir.split(/[/\\]/);
   if (dir !== "." && relSegments.length >= 1 && relSegments[0] !== ".") {
     patterns.push(norm(join("tests", dir, `${stem}.test.ts`)));
+    patterns.push(norm(join("tests", dir, `${stem}.spec.ts`)));
     patterns.push(norm(join("__tests__", dir, `${stem}.test.ts`)));
+    patterns.push(norm(join("__tests__", dir, `${stem}.spec.ts`)));
   }
 
   patterns.push(norm(join(dir, "__tests__", `${stem}.test.${ext.replace(".", "")}`)));
