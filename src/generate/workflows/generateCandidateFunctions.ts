@@ -59,6 +59,11 @@ IGNORE funtions that are
 - data transformation pipelines that are just chaining calls without much logic
 - simple conversion functions (e.g. formatting, parsing) unless they have complex logic or are well-tested
 
+also identify the test file that covers each function too. Common test file patterns include:
+- same path with .test or .spec before the extension (e.g. src/foo.ts -> src/foo.test.ts)
+- __tests__ directory with same filename (e.g. src/foo.ts -> src/__tests__/foo.ts)
+- tests/ directory with same filename (e.g. src/foo.ts -> tests/foo.ts)
+
 ## Rules
 - Stop after collecting at least ${MIN_FUNCTIONS} and up to ${MAX_FUNCTIONS} functions total across all files
 - Pick 0 functions from a file if none qualify — never force selections
@@ -71,8 +76,8 @@ Use the \`write_ownbench\` tool to write the file to: \`metadata/candidate_funct
 \`\`\`json
 {
   "functions": [
-    { "file": "src/lib/config.ts", "name": "readConfig" },
-    { "file": "src/lib/config.ts", "name": "writeConfig" }
+    { "file": "src/lib/config.ts", "name": "readConfig", "testFile": "src/lib/config.test.ts" },
+    { "file": "src/lib/config.ts", "name": "writeConfig", "testFile": "src/lib/config.spec.ts" }
   ]
 }
 \`\`\`
@@ -92,7 +97,7 @@ Use the \`write_ownbench\` tool to write the file to: \`metadata/candidate_funct
 
   const metaPath = join(ctx.cwd, ".ownbench", "metadata", "candidate_functions.json");
   const raw = JSON.parse(readFileSync(metaPath, "utf-8"));
-  const llmOutput: { file: string; name: string }[] = raw.functions;
+  const llmOutput: { file: string; name: string; testFile: string }[] = raw.functions;
   const resolved = resolveCandidates(ctx.cwd, llmOutput);
 
   writeFileSync(

@@ -103,6 +103,7 @@ describe("runPromptWithRetry", () => {
       "do something",
       validator,
     );
+    p.catch(() => {});
     await vi.advanceTimersByTimeAsync(5000);
     await expect(p).rejects.toThrow("failed after 3 attempt(s)");
     expect(sess.session.followUp).toHaveBeenCalledTimes(2);
@@ -149,6 +150,7 @@ describe("runPromptWithRetry", () => {
       "do something",
       validator,
     );
+    p.catch(() => {});
     await vi.advanceTimersByTimeAsync(3000);
     await expect(p).rejects.toThrow("failed after 2 attempt(s)");
     expect(sess.session.followUp).toHaveBeenCalledTimes(1);
@@ -220,6 +222,7 @@ describe("runPromptWithRetry", () => {
       "do something",
       validator,
     );
+    p.catch(() => {});
     await vi.advanceTimersByTimeAsync(3000);
     await expect(p).rejects.toThrow("failed after 2 attempt(s)");
     expect(sess.session.followUp).toHaveBeenCalledTimes(1);
@@ -238,6 +241,7 @@ describe("runPromptWithRetry", () => {
       validator,
       { maxRetries: 1 },
     );
+    p.catch(() => {});
     await vi.advanceTimersByTimeAsync(3000);
     await expect(p).rejects.toThrow("failed after 2 attempt(s)");
     expect(sess.session.followUp).toHaveBeenCalledTimes(1);
@@ -262,6 +266,7 @@ describe("runPromptWithRetry", () => {
       "do something",
       () => "bad",
     );
+    p.catch(() => {});
     await vi.advanceTimersByTimeAsync(3000);
     await expect(p).rejects.toThrow();
 

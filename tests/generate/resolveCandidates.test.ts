@@ -35,8 +35,8 @@ describe("resolveCandidates", () => {
     );
 
     const llmOutput = [
-      { file: "src/utils.ts", name: "format" },
-      { file: "src/utils.ts", name: "parse" },
+      { file: "src/utils.ts", name: "format", testFile: "src/utils.test.ts" },
+      { file: "src/utils.ts", name: "parse", testFile: "src/utils.test.ts" },
     ];
 
     const result = resolveCandidates(tmpDir, llmOutput);
@@ -61,11 +61,11 @@ describe("resolveCandidates", () => {
       "export function compute() { return 42; }",
     );
 
-    const llmOutput = [{ file: "src/no-test.ts", name: "compute" }];
+    const llmOutput = [{ file: "src/no-test.ts", name: "compute", testFile: "" }];
     const result = resolveCandidates(tmpDir, llmOutput);
 
     expect(result).toHaveLength(1);
-    expect(result[0].testFile).toBeNull();
+    expect(result[0].testFile).toBe("");
   });
 
   it("skips functions that cannot be found in the source file", () => {
@@ -76,8 +76,8 @@ describe("resolveCandidates", () => {
     );
 
     const llmOutput = [
-      { file: "src/a.ts", name: "nonexistent" },
-      { file: "src/a.ts", name: "real" },
+      { file: "src/a.ts", name: "nonexistent", testFile: "" },
+      { file: "src/a.ts", name: "real", testFile: "" },
     ];
     const result = resolveCandidates(tmpDir, llmOutput);
 
@@ -98,7 +98,7 @@ describe("resolveCandidates", () => {
       ].join("\n"),
     );
 
-    const llmOutput = [{ file: "src/service.ts", name: "execute" }];
+    const llmOutput = [{ file: "src/service.ts", name: "execute", testFile: "" }];
     const result = resolveCandidates(tmpDir, llmOutput);
 
     expect(result).toHaveLength(1);
@@ -112,7 +112,7 @@ describe("resolveCandidates", () => {
       'const add = (a: number, b: number) => a + b;',
     );
 
-    const llmOutput = [{ file: "src/fns.ts", name: "add" }];
+    const llmOutput = [{ file: "src/fns.ts", name: "add", testFile: "" }];
     const result = resolveCandidates(tmpDir, llmOutput);
 
     expect(result).toHaveLength(1);
@@ -126,7 +126,7 @@ describe("resolveCandidates", () => {
       'const multiply = function(a: number, b: number) { return a * b; };',
     );
 
-    const llmOutput = [{ file: "src/fns.ts", name: "multiply" }];
+    const llmOutput = [{ file: "src/fns.ts", name: "multiply", testFile: "" }];
     const result = resolveCandidates(tmpDir, llmOutput);
 
     expect(result).toHaveLength(1);
@@ -134,7 +134,7 @@ describe("resolveCandidates", () => {
   });
 
   it("skips entries with missing source files", () => {
-    const llmOutput = [{ file: "src/missing.ts", name: "foo" }];
+    const llmOutput = [{ file: "src/missing.ts", name: "foo", testFile: "" }];
     const result = resolveCandidates(tmpDir, llmOutput);
 
     expect(result).toHaveLength(0);
@@ -146,8 +146,8 @@ describe("resolveCandidates", () => {
     writeFileSync(join(tmpDir, "src", "b.ts"), "export function beta() {}");
 
     const llmOutput = [
-      { file: "src/a.ts", name: "alpha" },
-      { file: "src/b.ts", name: "beta" },
+      { file: "src/a.ts", name: "alpha", testFile: "" },
+      { file: "src/b.ts", name: "beta", testFile: "" },
     ];
     const result = resolveCandidates(tmpDir, llmOutput);
 
@@ -161,7 +161,7 @@ describe("resolveCandidates", () => {
     writeFileSync(join(tmpDir, "src", "foo.ts"), "export function foo() {}");
     writeFileSync(join(tmpDir, "src", "foo.test.ts"), "test('foo', () => {});");
 
-    const llmOutput = [{ file: "src/foo.ts", name: "foo" }];
+    const llmOutput = [{ file: "src/foo.ts", name: "foo", testFile: "src/foo.test.ts" }];
     const result = resolveCandidates(tmpDir, llmOutput);
 
     expect(result).toHaveLength(1);

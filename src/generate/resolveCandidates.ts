@@ -1,5 +1,4 @@
 import { extractFunctions } from "./extractFunctions.js";
-import { findTestFile } from "./findTestFile.js";
 
 export interface CandidateFunction {
   file: string;
@@ -9,7 +8,7 @@ export interface CandidateFunction {
 
 export function resolveCandidates(
   projectDir: string,
-  llmOutput: { file: string; name: string }[],
+  llmOutput: { file: string; name: string; testFile: string }[],
 ): CandidateFunction[] {
   const files = [...new Set(llmOutput.map((c) => c.file))];
   const astFunctions = extractFunctions(projectDir, files);
@@ -27,7 +26,7 @@ export function resolveCandidates(
     result.push({
       file: c.file,
       name: c.name,
-      testFile: findTestFile(projectDir, c.file),
+      testFile: c.testFile
     });
   }
 
