@@ -11,30 +11,37 @@ export const WORKFLOW_OPTIONS: WorkflowOption[] = [
   {
     id: "unit-tests-to-code",
     label: "Unit Tests to Code",
-    description: "Scan codebase and map functional source files sorted by size",
+    description:
+      "Generate test suits that test models capabilities to generate code from unit tests",
     status: "active",
   },
   {
     id: "functional-variants",
     label: "Functional Variants",
-    description: "Generate alternative implementations of existing functions",
+    description:
+      "Generate tests that test models capabilities to generate functional variants of existing code",
     status: "coming_soon",
   },
   {
     id: "codebase-understanding",
     label: "Codebase Understanding",
-    description: "Generate comprehensive documentation of codebase structure",
+    description:
+      "Generate tests that test models capabilities to understand the codebase and answer questions about it",
     status: "coming_soon",
   },
   {
     id: "codebase-conventions",
     label: "Codebase Conventions",
-    description: "Extract and document coding conventions from the codebase",
+    description:
+      "Generate tests that test models capabilities following codebase conventions and best practices",
     status: "coming_soon",
   },
 ];
 
-const WORKFLOW_RUNNERS: Record<string, (ctx: WorkflowContext) => Promise<void>> = {
+const WORKFLOW_RUNNERS: Record<
+  string,
+  (ctx: WorkflowContext) => Promise<void>
+> = {
   "unit-tests-to-code": runUnitTestsToCode,
 };
 
@@ -67,7 +74,5 @@ export async function runSelectedWorkflows(
 }
 
 export function getActiveWorkflowIds(): string[] {
-  return WORKFLOW_OPTIONS.filter((w) => w.status === "active").map(
-    (w) => w.id,
-  );
+  return WORKFLOW_OPTIONS.filter((w) => w.status === "active").map((w) => w.id);
 }
