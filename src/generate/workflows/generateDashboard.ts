@@ -35,6 +35,11 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #d0d7de; font-size: 0.875rem; }
   tr:last-child td { border-bottom: none; }
   tr:hover td { background: #f6f8fa; }
+  tr.function-row { cursor: pointer; }
+  tr.function-row:hover td { background: #eef3f8; }
+  tr.detail-row { display: none; }
+  tr.detail-row td { background: #f6f8fa; border-bottom: 1px solid #d0d7de; padding: 0.75rem; }
+  .desc { font-size: 0.8125rem; color: #333; line-height: 1.6; max-width: 48rem; }
   code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.8125rem; background: #f6f8fa; padding: 0.125rem 0.25rem; border-radius: 3px; }
   .empty { color: #57606a; font-style: italic; padding: 1rem; text-align: center; }
   .loading { color: #57606a; }
@@ -66,6 +71,13 @@ document.querySelectorAll(".tab").forEach(tab => {
   });
 });
 
+document.addEventListener("click", e => {
+  const row = e.target.closest(".function-row");
+  if (!row) return;
+  const detail = document.getElementById("detail-" + row.dataset.index);
+  if (detail) detail.style.display = detail.style.display === "table-row" ? "none" : "table-row";
+});
+
 async function loadJSON(file) {
   try {
     const res = await fetch(file);
@@ -78,17 +90,20 @@ function statsHTML(funcs, files) {
   const fileCount = files ? files.files.length : 0;
   const funcCount = funcs ? funcs.functions.length : 0;
   const testCount = funcs ? funcs.functions.filter(f => f.testFile).length : 0;
+  const descCount = funcs ? funcs.functions.filter(f => f.functionDescription).length : 0;
   return [
     { value: fileCount, label: "Source Files" },
     { value: funcCount, label: "Candidate Functions" },
     { value: testCount, label: "With Tests" },
+    { value: descCount, label: "Described" },
   ].map(s => '<div class="stat"><div class="stat-value">' + s.value + '</div><div class="stat-label">' + s.label + '</div></div>').join("");
 }
 
 function renderFunctions(funcs) {
   if (!funcs || funcs.functions.length === 0) return '<div class="empty">No candidate functions found.</div>';
-  const rows = funcs.functions.map(f =>
-    "<tr><td><code>" + f.file + "</code></td><td><code>" + f.name + "</code></td><td>" + (f.testFile ? "<code>" + f.testFile + "</code>" : '<span style="color:#57606a">—</span>') + "</td></tr>"
+  const rows = funcs.functions.map((f, i) =>
+    '<tr class="function-row" data-index="' + i + '"><td><code>' + f.file + '</code></td><td><code>' + f.name + '</code></td><td>' + (f.testFile ? "<code>" + f.testFile + "</code>" : '<span style="color:#57606a">—</span>') + '</td></tr>' +
+    '<tr class="detail-row" id="detail-' + i + '"><td colspan="3"><div class="desc">' + (f.functionDescription || '<em style="color:#57606a">No description available.</em>') + '</div></td></tr>'
   ).join("");
   return "<table><thead><tr><th>File</th><th>Function</th><th>Test File</th></tr></thead><tbody>" + rows + "</tbody></table>";
 }

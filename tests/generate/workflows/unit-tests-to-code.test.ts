@@ -50,6 +50,7 @@ describe("runUnitTestsToCode", () => {
         file: "src/utils.ts",
         name: "format",
         testFile: "tests/utils.test.ts",
+        functionDescription: "Formats a string.",
       },
     ]);
 
@@ -65,6 +66,7 @@ describe("runUnitTestsToCode", () => {
     );
     expect(staged).toContain("src_utils.ts");
     expect(staged).toContain("tests_utils.test.ts");
+    expect(staged).toContain("format_description.txt");
   });
 
   it("emits an info event per staged function and a summary", async () => {

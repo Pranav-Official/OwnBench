@@ -5,7 +5,7 @@ import {
   uniqueFolderName,
   stageTestSuite,
 } from "../../../src/generate/workflows/stageTestSuites.js";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -111,6 +111,7 @@ describe("stageTestSuite", () => {
         file: "src/config.ts",
         name: "readConfig",
         testFile: "tests/config.test.ts",
+        functionDescription: "Reads and parses a JSON configuration file.",
       },
       used,
       outDir,
@@ -131,6 +132,12 @@ describe("stageTestSuite", () => {
       "utf-8",
     );
     expect(testContent).toBe("import { read } from '../src/config';");
+
+    const descContent = readFileSync(
+      join(outDir, "readConfig", "readConfig_description.txt"),
+      "utf-8",
+    );
+    expect(descContent).toBe("Reads and parses a JSON configuration file.");
   });
 
   it("skips when testFile is null", () => {
@@ -152,6 +159,62 @@ describe("stageTestSuite", () => {
     expect(result.status).toBe("skipped");
     expect(result.reason).toBe("testFile is null");
     expect(used.size).toBe(0);
+  });
+
+  it("writes description file when functionDescription is provided", () => {
+    mkdirSync(join(tmpDir, "src"), { recursive: true });
+    writeFileSync(join(tmpDir, "src", "config.ts"), "export function readConfig() {}");
+    mkdirSync(join(tmpDir, "tests"), { recursive: true });
+    writeFileSync(join(tmpDir, "tests", "config.test.ts"), "test");
+
+    const outDir = join(tmpDir, ".ownbench", "unit-test-to-code-tests");
+    mkdirSync(outDir, { recursive: true });
+
+    const used = new Set<string>();
+    const result = stageTestSuite(
+      tmpDir,
+      {
+        file: "src/config.ts",
+        name: "readConfig",
+        testFile: "tests/config.test.ts",
+        functionDescription: "Reads config",
+      },
+      used,
+      outDir,
+    );
+
+    expect(result.status).toBe("staged");
+    const descContent = readFileSync(
+      join(outDir, "readConfig", "readConfig_description.txt"),
+      "utf-8",
+    );
+    expect(descContent).toBe("Reads config");
+  });
+
+  it("does not write description file when functionDescription is missing", () => {
+    mkdirSync(join(tmpDir, "src"), { recursive: true });
+    writeFileSync(join(tmpDir, "src", "config.ts"), "export function readConfig() {}");
+    mkdirSync(join(tmpDir, "tests"), { recursive: true });
+    writeFileSync(join(tmpDir, "tests", "config.test.ts"), "test");
+
+    const outDir = join(tmpDir, ".ownbench", "unit-test-to-code-tests");
+    mkdirSync(outDir, { recursive: true });
+
+    const used = new Set<string>();
+    const result = stageTestSuite(
+      tmpDir,
+      {
+        file: "src/config.ts",
+        name: "readConfig",
+        testFile: "tests/config.test.ts",
+      },
+      used,
+      outDir,
+    );
+
+    expect(result.status).toBe("staged");
+    const descPath = join(outDir, "readConfig", "readConfig_description.txt");
+    expect(existsSync(descPath)).toBe(false);
   });
 
   it("skips when source file is missing", () => {

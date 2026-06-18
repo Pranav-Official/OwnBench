@@ -78,7 +78,7 @@ describe("generateMetadata", () => {
         if (stepKey === "metadata.candidateFunctions") {
           writeFakeArtifact(
             "candidate_functions.json",
-            '{"functions":[{"file":"src/a.ts","name":"foo","testFile":null}]}',
+            '{"functions":[{"file":"src/a.ts","name":"foo","testFile":null,"functionDescription":"A test function."}]}',
           );
         }
         const err = validator();
@@ -117,7 +117,7 @@ describe("generateMetadata", () => {
         } else if (stepKey === "metadata.candidateFunctions") {
           writeFakeArtifact(
             "candidate_functions.json",
-            '{"functions":[{"file":"src/a.ts","name":"foo","testFile":null}]}',
+            '{"functions":[{"file":"src/a.ts","name":"foo","testFile":null,"functionDescription":"A test function."}]}',
           );
         }
         const err = validator();

@@ -54,6 +54,28 @@ describe("resolveCandidates", () => {
     });
   });
 
+  it("preserves functionDescription from LLM output", () => {
+    mkdirSync(join(tmpDir, "src"), { recursive: true });
+    writeFileSync(
+      join(tmpDir, "src", "a.ts"),
+      "export function compute(x: number) { return x * 2; }",
+    );
+
+    const llmOutput = [
+      {
+        file: "src/a.ts",
+        name: "compute",
+        testFile: "src/a.test.ts",
+        functionDescription: "Doubles the input number.",
+      },
+    ];
+
+    const result = resolveCandidates(tmpDir, llmOutput);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].functionDescription).toBe("Doubles the input number.");
+  });
+
   it("returns null testFile when no test file exists", () => {
     mkdirSync(join(tmpDir, "src"), { recursive: true });
     writeFileSync(

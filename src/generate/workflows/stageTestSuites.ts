@@ -6,6 +6,7 @@ export interface CandidateFunction {
   file: string;
   name: string;
   testFile: string | null;
+  functionDescription?: string;
 }
 
 export interface StageResult {
@@ -88,6 +89,11 @@ export function stageTestSuite(
   const obfuscated = obfuscateFunction(projectDir, fn.file, fn.name);
   writeFileSync(srcDest, obfuscated, "utf-8");
   copyFileSync(testPath, testDest);
+
+  if (fn.functionDescription) {
+    const descFile = join(folderPath, `${sanitizeFolderName(fn.name)}_description.txt`);
+    writeFileSync(descFile, fn.functionDescription, "utf-8");
+  }
 
   return { status: "staged", folderName };
 }

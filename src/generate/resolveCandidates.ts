@@ -4,11 +4,12 @@ export interface CandidateFunction {
   file: string;
   name: string;
   testFile: string | null;
+  functionDescription?: string;
 }
 
 export function resolveCandidates(
   projectDir: string,
-  llmOutput: { file: string; name: string; testFile: string }[],
+  llmOutput: { file: string; name: string; testFile: string; functionDescription: string }[],
 ): CandidateFunction[] {
   const files = [...new Set(llmOutput.map((c) => c.file))];
   const astFunctions = extractFunctions(projectDir, files);
@@ -26,7 +27,8 @@ export function resolveCandidates(
     result.push({
       file: c.file,
       name: c.name,
-      testFile: c.testFile
+      testFile: c.testFile,
+      functionDescription: c.functionDescription,
     });
   }
 

@@ -28,6 +28,11 @@ function validate(ctx: WorkflowContext): string | null {
     if (data.functions.length === 0) {
       return "JSON is valid but 'functions' array is empty";
     }
+    for (const fn of data.functions) {
+      if (!fn.functionDescription || typeof fn.functionDescription !== "string" || fn.functionDescription.trim().length === 0) {
+        return `Function "${fn.name ?? "unknown"}" is missing a non-empty functionDescription`;
+      }
+    }
     return null;
   } catch {
     return "output file exists but is not valid JSON";
@@ -76,14 +81,19 @@ Use the \`write_ownbench\` tool to write the file to: \`metadata/candidate_funct
 \`\`\`json
 {
   "functions": [
-    { "file": "src/lib/config.ts", "name": "readConfig", "testFile": "src/lib/config.test.ts" },
-    { "file": "src/lib/config.ts", "name": "writeConfig", "testFile": "src/lib/config.spec.ts" }
+    {
+      "file": "src/lib/config.ts",
+      "name": "readConfig",
+      "testFile": "src/lib/config.test.ts",
+      "functionDescription": "Reads and parses a JSON configuration file from the project directory. Returns the parsed config object, or null if the file does not exist or contains invalid JSON."
+    }
   ]
 }
 \`\`\`
 
 - "file": path relative to project root (${ctx.cwd}), forward slashes
 - "name": exact function/method/variable name as it appears in source
+- "functionDescription": describe what the function does from a functional/behavioral perspective. Do NOT mention code syntax, types, variable names, or implementation details. Focus on the purpose and outcome. Max 100 words.
 - Sort by file path, then by name
 
 ## Important rules
@@ -97,7 +107,7 @@ Use the \`write_ownbench\` tool to write the file to: \`metadata/candidate_funct
 
   const metaPath = join(ctx.cwd, ".ownbench", "metadata", "candidate_functions.json");
   const raw = JSON.parse(readFileSync(metaPath, "utf-8"));
-  const llmOutput: { file: string; name: string; testFile: string }[] = raw.functions;
+  const llmOutput: { file: string; name: string; testFile: string; functionDescription: string }[] = raw.functions;
   const resolved = resolveCandidates(ctx.cwd, llmOutput);
 
   writeFileSync(

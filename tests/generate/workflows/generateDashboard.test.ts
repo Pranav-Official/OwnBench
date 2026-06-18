@@ -27,5 +27,8 @@ describe("generateDashboard", () => {
     expect(html).toContain("OwnBench Dashboard");
     expect(html).toContain("candidate_functions.json");
     expect(html).toContain("functional_files.json");
+    expect(html).toContain("functionDescription");
+    expect(html).toContain("detail-row");
+    expect(html).toContain("function-row");
   });
 });
