@@ -88,6 +88,13 @@ export function WorkflowSelector({ projectDir, stale }: WorkflowSelectorProps) {
     setViewState({ type: "done", message: "All workflows completed." });
   };
 
+  useEffect(() => {
+    if (viewState.type === "done" || viewState.type === "error") {
+      const timer = setTimeout(() => process.exit(0), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [viewState.type]);
+
   useInput((input, key) => {
     if (viewState.type === "running") {
       if (key.upArrow) {

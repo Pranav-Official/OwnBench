@@ -96,6 +96,13 @@ export function EvalWorkflowSelector({
     setViewState({ type: "done", message: "Evaluation complete." });
   };
 
+  useEffect(() => {
+    if (viewState.type === "done" || viewState.type === "error") {
+      const timer = setTimeout(() => process.exit(0), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [viewState.type]);
+
   useInput((input, key) => {
     if (viewState.type === "running") {
       if (key.upArrow) {
