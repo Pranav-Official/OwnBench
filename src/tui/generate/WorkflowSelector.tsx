@@ -6,6 +6,10 @@ import {
 } from "../../generate/registry.js";
 import type { LogEvent } from "../../generate/types.js";
 import { LogView, appendEvent, type LogState } from "./LogView.js";
+import {
+  FileAnalysisProgress,
+  type FileStatus,
+} from "./FileAnalysisProgress.js";
 import { readConfig } from "../../lib/config.js";
 
 interface WorkflowSelectorProps {
@@ -20,7 +24,11 @@ type ViewState =
   | { type: "done"; message: string }
   | { type: "error"; message: string };
 
-export function WorkflowSelector({ projectDir, stale, concurrentAgents }: WorkflowSelectorProps) {
+export function WorkflowSelector({
+  projectDir,
+  stale,
+  concurrentAgents,
+}: WorkflowSelectorProps) {
   const [viewState, setViewState] = useState<ViewState>({ type: "select" });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -34,12 +42,70 @@ export function WorkflowSelector({ projectDir, stale, concurrentAgents }: Workfl
   );
   const [autoScroll, setAutoScroll] = useState(true);
 
+  const [subagentFiles, setSubagentFiles] = useState<{ path: string }[]>([]);
+  const [subagentStatuses, setSubagentStatuses] = useState<FileStatus[]>([]);
+  const [subagentPhase, setSubagentPhase] = useState(false);
+  const [subagentDoneCount, setSubagentDoneCount] = useState(0);
+  const [subagentActiveCount, setSubagentActiveCount] = useState(0);
+
   const { rows } = useWindowSize();
   const visibleHeight = Math.max(10, rows - 8);
 
-  const handleEvent = useCallback((event: LogEvent) => {
-    setLog((prev) => appendEvent(prev, event));
-  }, []);
+  const handleEvent = useCallback(
+    (event: LogEvent) => {
+      if (event.type === "subagent_init") {
+        setSubagentFiles(event.files);
+        setSubagentStatuses(event.files.map(() => ({ state: "pending" })));
+        setSubagentPhase(true);
+        setSubagentDoneCount(0);
+        setSubagentActiveCount(0);
+        return;
+      }
+
+      if (event.type === "subagent_start") {
+        setSubagentStatuses((prev) => {
+          const next = [...prev];
+          next[event.index] = { state: "analyzing" };
+          return next;
+        });
+        setSubagentActiveCount((prev) => prev + 1);
+        return;
+      }
+
+      if (event.type === "subagent_done") {
+        setSubagentStatuses((prev) => {
+          const next = [...prev];
+          next[event.index] = {
+            state: "done",
+            candidateCount: event.candidateCount,
+          };
+          return next;
+        });
+        setSubagentDoneCount((prev) => prev + 1);
+        setSubagentActiveCount((prev) => Math.max(0, prev - 1));
+        return;
+      }
+
+      if (event.type === "subagent_skip") {
+        setSubagentStatuses((prev) => {
+          const next = [...prev];
+          next[event.index] = { state: "skipped", reason: event.reason };
+          return next;
+        });
+        setSubagentDoneCount((prev) => prev + 1);
+        setSubagentActiveCount((prev) => Math.max(0, prev - 1));
+        return;
+      }
+
+      if (event.type === "subagent_summary") {
+        setSubagentPhase(false);
+        return;
+      }
+
+      setLog((prev) => appendEvent(prev, event));
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!autoScroll) return;
@@ -68,7 +134,12 @@ export function WorkflowSelector({ projectDir, stale, concurrentAgents }: Workfl
     setScrollOffset(0);
     setExpandedBlocks(new Set());
     setAutoScroll(true);
-    setViewState({ type: "running", label: "Generating metadata…" });
+    setSubagentFiles([]);
+    setSubagentStatuses([]);
+    setSubagentPhase(false);
+    setSubagentDoneCount(0);
+    setSubagentActiveCount(0);
+    setViewState({ type: "running", label: "Generating metadata\u2026" });
 
     try {
       const config = readConfig();
@@ -99,6 +170,28 @@ export function WorkflowSelector({ projectDir, stale, concurrentAgents }: Workfl
 
   useInput((input, key) => {
     if (viewState.type === "running") {
+      if (subagentPhase) {
+        if (key.upArrow) {
+          setAutoScroll(false);
+          setScrollOffset((prev) => Math.max(0, prev - 1));
+        } else if (key.downArrow) {
+          setAutoScroll(false);
+          setScrollOffset((prev) =>
+            Math.min(subagentFiles.length - visibleHeight, prev + 1),
+          );
+        } else if (key.home) {
+          setAutoScroll(false);
+          setScrollOffset(0);
+        } else if (key.end) {
+          setAutoScroll(true);
+          setScrollOffset(
+            Math.max(0, subagentFiles.length - visibleHeight),
+          );
+        }
+        if (key.escape) process.exit(0);
+        return;
+      }
+
       if (key.upArrow) {
         setAutoScroll(false);
         setSelectedIndex((prev) => {
@@ -111,7 +204,9 @@ export function WorkflowSelector({ projectDir, stale, concurrentAgents }: Workfl
           const max = log.items.length - 1;
           const next = Math.min(max, prev + 1);
           if (next >= max) setAutoScroll(true);
-          setScrollOffset((so) => Math.max(so, next - visibleHeight + 1));
+          setScrollOffset((so) =>
+            Math.max(so, next - visibleHeight + 1),
+          );
           return next;
         });
       } else if (key.pageUp) {
@@ -125,7 +220,9 @@ export function WorkflowSelector({ projectDir, stale, concurrentAgents }: Workfl
         setSelectedIndex((prev) => {
           const max = log.items.length - 1;
           const next = Math.min(max, prev + visibleHeight - 1);
-          setScrollOffset((so) => Math.min(max - visibleHeight + 1, so + visibleHeight - 1));
+          setScrollOffset((so) =>
+            Math.min(max - visibleHeight + 1, so + visibleHeight - 1),
+          );
           return next;
         });
       } else if (key.home) {
@@ -183,14 +280,23 @@ export function WorkflowSelector({ projectDir, stale, concurrentAgents }: Workfl
             Running: <Text color="yellow">{viewState.label}</Text>
           </Text>
         </Box>
-        <LogView
-          items={log.items}
-          stream={log.stream}
-          selectedIndex={selectedIndex}
-          scrollOffset={scrollOffset}
-          expandedBlocks={expandedBlocks}
-          height={visibleHeight}
-        />
+        {subagentPhase ? (
+          <FileAnalysisProgress
+            files={subagentFiles}
+            statuses={subagentStatuses}
+            doneCount={subagentDoneCount}
+            activeCount={subagentActiveCount}
+          />
+        ) : (
+          <LogView
+            items={log.items}
+            stream={log.stream}
+            selectedIndex={selectedIndex}
+            scrollOffset={scrollOffset}
+            expandedBlocks={expandedBlocks}
+            height={visibleHeight}
+          />
+        )}
       </Box>
     );
   }
@@ -218,8 +324,6 @@ export function WorkflowSelector({ projectDir, stale, concurrentAgents }: Workfl
     );
   }
 
-  const activeOptions = WORKFLOW_OPTIONS.filter((o) => o.status === "active");
-
   return (
     <Box flexDirection="column" padding={1}>
       <Box marginBottom={1}>
@@ -233,7 +337,7 @@ export function WorkflowSelector({ projectDir, stale, concurrentAgents }: Workfl
         const isSelected = i === selectedIndex;
         const isChecked = checked.has(option.id);
         const isDisabled = option.status !== "active";
-        const prefix = isSelected ? "▶" : " ";
+        const prefix = isSelected ? "\u25B6" : " ";
         const checkbox = isChecked ? "[*]" : "[ ]";
 
         return (
@@ -275,7 +379,7 @@ export function WorkflowSelector({ projectDir, stale, concurrentAgents }: Workfl
 
       <Box marginTop={1} marginLeft={1}>
         <Text dimColor>
-          ↑↓ navigate · space toggle · enter confirm · esc quit
+          {"\u2191\u2193"} navigate · space toggle · enter confirm · esc quit
         </Text>
       </Box>
     </Box>

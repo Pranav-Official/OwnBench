@@ -29,6 +29,17 @@ export interface LogState {
 }
 
 export function appendEvent(state: LogState, event: LogEvent): LogState {
+  if (
+    event.type === "subagent_init" ||
+    event.type === "subagent_start" ||
+    event.type === "subagent_done" ||
+    event.type === "subagent_skip" ||
+    event.type === "subagent_summary" ||
+    event.type === "phase"
+  ) {
+    return state;
+  }
+
   const { items, stream } = state;
 
   if (event.type === "thinking") {

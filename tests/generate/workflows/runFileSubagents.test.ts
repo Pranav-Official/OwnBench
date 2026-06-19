@@ -35,7 +35,7 @@ function onEvent(e: LogEvent) {
 }
 
 describe("runFileSubagents", () => {
-  it("emits starting event with file count and concurrency", async () => {
+  it("emits subagent_init with file list and concurrency", async () => {
     const files = [
       { path: "src/a.ts", lines: 50, description: "A" },
       { path: "src/b.ts", lines: 60, description: "B" },
@@ -44,13 +44,13 @@ describe("runFileSubagents", () => {
     await runFileSubagents(files, tmpDir, 2, { cwd: tmpDir, onEvent });
 
     expect(events[0]).toEqual({
-      type: "info",
-      id: 0,
-      message: "Starting file analysis: 2 files, 2 concurrent agents",
+      type: "subagent_init",
+      files: [{ path: "src/a.ts" }, { path: "src/b.ts" }],
+      concurrentLimit: 2,
     });
   });
 
-  it("emits analyzing events for each file", async () => {
+  it("emits subagent_start and subagent_done/skip for each file", async () => {
     const files = [
       { path: "src/a.ts", lines: 50, description: "A" },
       { path: "src/b.ts", lines: 60, description: "B" },
@@ -58,33 +58,35 @@ describe("runFileSubagents", () => {
 
     await runFileSubagents(files, tmpDir, 2, { cwd: tmpDir, onEvent });
 
-    const analyzingEvents = events.filter(
-      (e) => e.type === "info" && typeof e.message === "string" && e.message.startsWith("Analyzing file"),
+    const startEvents = events.filter((e) => e.type === "subagent_start");
+    expect(startEvents).toHaveLength(2);
+
+    const doneOrSkip = events.filter(
+      (e) => e.type === "subagent_done" || e.type === "subagent_skip",
     );
-    expect(analyzingEvents).toHaveLength(2);
+    expect(doneOrSkip).toHaveLength(2);
   });
 
-  it("emits collected summary at the end", async () => {
-    const files = [
-      { path: "src/a.ts", lines: 50, description: "A" },
-    ];
+  it("emits subagent_summary at the end", async () => {
+    const files = [{ path: "src/a.ts", lines: 50, description: "A" }];
 
     await runFileSubagents(files, tmpDir, 2, { cwd: tmpDir, onEvent });
 
-    const summaryEvent = events.find(
-      (e) => e.type === "info" && typeof e.message === "string" && e.message.startsWith("Collected"),
-    );
+    const summaryEvent = events.find((e) => e.type === "subagent_summary");
     expect(summaryEvent).toBeDefined();
   });
 
   it("writes _all_candidates.json", async () => {
-    const files = [
-      { path: "src/a.ts", lines: 50, description: "A" },
-    ];
+    const files = [{ path: "src/a.ts", lines: 50, description: "A" }];
 
     await runFileSubagents(files, tmpDir, 2, { cwd: tmpDir, onEvent });
 
-    const allPath = join(tmpDir, ".ownbench", "metadata", "_all_candidates.json");
+    const allPath = join(
+      tmpDir,
+      ".ownbench",
+      "metadata",
+      "_all_candidates.json",
+    );
     const data = JSON.parse(readFileSync(allPath, "utf-8"));
     expect(data).toHaveProperty("functions");
     expect(Array.isArray(data.functions)).toBe(true);
@@ -95,9 +97,7 @@ describe("runFileSubagents", () => {
       "../../../src/agents/session.js"
     );
 
-    const files = [
-      { path: "src/a.ts", lines: 50, description: "A" },
-    ];
+    const files = [{ path: "src/a.ts", lines: 50, description: "A" }];
 
     await runFileSubagents(files, tmpDir, 2, { cwd: tmpDir, onEvent });
 
@@ -110,9 +110,7 @@ describe("runFileSubagents", () => {
       force: true,
     });
 
-    const files = [
-      { path: "src/a.ts", lines: 50, description: "A" },
-    ];
+    const files = [{ path: "src/a.ts", lines: 50, description: "A" }];
 
     await runFileSubagents(files, tmpDir, 2, { cwd: tmpDir, onEvent });
 
@@ -122,13 +120,12 @@ describe("runFileSubagents", () => {
     expect(dirExists).toBe(true);
   });
 
-  it("handles empty files array", async () => {
+  it("emits subagent_summary for empty files array", async () => {
     await runFileSubagents([], tmpDir, 5, { cwd: tmpDir, onEvent });
 
-    const summaryEvent = events.find(
-      (e) => e.type === "info" && typeof e.message === "string" && e.message.startsWith("Collected"),
-    );
+    const summaryEvent = events.find((e) => e.type === "subagent_summary");
     expect(summaryEvent).toBeDefined();
-    expect((summaryEvent as any).message).toContain("0 candidates");
+    expect((summaryEvent as any).totalCandidates).toBe(0);
+    expect((summaryEvent as any).totalFiles).toBe(0);
   });
 });

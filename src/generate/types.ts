@@ -48,4 +48,39 @@ export type LogEvent =
       type: "info";
       id: number;
       message: string;
+    }
+  | {
+      type: "subagent_init";
+      files: { path: string }[];
+      concurrentLimit: number;
+    }
+  | {
+      type: "subagent_start";
+      index: number;
+      path: string;
+      total: number;
+    }
+  | {
+      type: "subagent_done";
+      index: number;
+      path: string;
+      candidateCount: number;
+    }
+  | {
+      type: "subagent_skip";
+      index: number;
+      path: string;
+      reason: string;
+    }
+  | {
+      type: "subagent_summary";
+      totalCandidates: number;
+      analyzedFiles: number;
+      skippedFiles: number;
+      totalFiles: number;
+    }
+  | {
+      type: "phase";
+      phase: "metadata" | "subagent_analysis" | "main_agent" | "workflow";
+      label: string;
     };

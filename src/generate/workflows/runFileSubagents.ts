@@ -47,18 +47,17 @@ export async function runFileSubagents(
   let skippedFiles = 0;
 
   ctx.onEvent?.({
-    type: "info",
-    id: 0,
-    message: `Starting file analysis: ${files.length} files, ${concurrentLimit} concurrent agents`,
+    type: "subagent_init",
+    files: files.map((f) => ({ path: f.path })),
+    concurrentLimit,
   });
 
   await runWithConcurrency(files, concurrentLimit, async (file, index) => {
-    const idx = index + 1;
-
     ctx.onEvent?.({
-      type: "info",
-      id: idx,
-      message: `Analyzing file ${idx}/${files.length}: ${file.path}`,
+      type: "subagent_start",
+      index,
+      path: file.path,
+      total: files.length,
     });
 
     const result = await analyzeFile(file, index, cwd, ctx.onEvent);
@@ -67,16 +66,18 @@ export async function runFileSubagents(
       allCandidates.push(...result.candidates);
       analyzedFiles++;
       ctx.onEvent?.({
-        type: "info",
-        id: idx + files.length,
-        message: `Analyzed file ${idx}/${files.length}: ${result.candidates.length} candidate${result.candidates.length === 1 ? "" : "s"} found`,
+        type: "subagent_done",
+        index,
+        path: file.path,
+        candidateCount: result.candidates.length,
       });
     } else {
       skippedFiles++;
       ctx.onEvent?.({
-        type: "info",
-        id: idx + files.length,
-        message: `Skipped file ${idx}/${files.length}: ${file.path} (no candidates or invalid output)`,
+        type: "subagent_skip",
+        index,
+        path: file.path,
+        reason: "no candidates",
       });
     }
   });
@@ -89,9 +90,11 @@ export async function runFileSubagents(
   );
 
   ctx.onEvent?.({
-    type: "info",
-    id: files.length * 2 + 1,
-    message: `Collected ${allCandidates.length} candidates from ${analyzedFiles} files (${skippedFiles} skipped)`,
+    type: "subagent_summary",
+    totalCandidates: allCandidates.length,
+    analyzedFiles,
+    skippedFiles,
+    totalFiles: files.length,
   });
 
   return {
