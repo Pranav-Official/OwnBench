@@ -11,6 +11,7 @@ import { readConfig } from "../../lib/config.js";
 interface WorkflowSelectorProps {
   projectDir: string;
   stale?: boolean;
+  concurrentAgents?: number;
 }
 
 type ViewState =
@@ -19,7 +20,7 @@ type ViewState =
   | { type: "done"; message: string }
   | { type: "error"; message: string };
 
-export function WorkflowSelector({ projectDir, stale }: WorkflowSelectorProps) {
+export function WorkflowSelector({ projectDir, stale, concurrentAgents }: WorkflowSelectorProps) {
   const [viewState, setViewState] = useState<ViewState>({ type: "select" });
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -76,6 +77,7 @@ export function WorkflowSelector({ projectDir, stale }: WorkflowSelectorProps) {
         onEvent: handleEvent,
         stale,
         maxRetries: config.maxRetries,
+        concurrentAgents,
       });
     } catch (err) {
       setViewState({

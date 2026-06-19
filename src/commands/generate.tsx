@@ -7,6 +7,7 @@ import { cwd } from "node:process";
 export const generateCmd = new Command("generate")
   .description("Run code analysis and generation workflows")
   .option("--stale", "Regenerate everything from scratch")
+  .option("--concurrentAgents <n>", "Number of concurrent subagents for file analysis", "5")
   .action((options) => {
     const config = readConfig();
     if (!config.llmProvider || !config.primaryModel) {
@@ -30,8 +31,9 @@ export const generateCmd = new Command("generate")
     }
 
     ensureInit();
+    const concurrentAgents = parseInt(options.concurrentAgents, 10) || 5;
     const { waitUntilExit } = render(
-      <WorkflowSelector projectDir={cwd()} stale={options.stale} />,
+      <WorkflowSelector projectDir={cwd()} stale={options.stale} concurrentAgents={concurrentAgents} />,
     );
     waitUntilExit();
   });

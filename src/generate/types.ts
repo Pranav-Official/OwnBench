@@ -12,6 +12,7 @@ export interface WorkflowContext {
   onEvent?: (event: LogEvent) => void;
   stale?: boolean;
   maxRetries?: number;
+  concurrentAgents?: number;
 }
 
 export type LogEvent =
